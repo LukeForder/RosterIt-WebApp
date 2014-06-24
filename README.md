@@ -3,7 +3,7 @@ RosterIt-WebApp
 About
 -------
 
-Part favour, part exploration, RosterIt is a roster management web app where you can setup sites, employees and managers. Employees are assigned to a Site and Managers log shift attendence for a variety of shifts.
+Part favour, part exploration, RosterIt is a roster management web app where you can setup sites, employees and managers. Employees are assigned to a Site and Managers log shift attendence for a variety of shifts. This in turn is used to calculate what shifts and employee worked over a given period.
 
 Written in C# using MVC, Web API V2, with MongoDB for used for data persistence. The UI is created through KnockoutJS, JQuery and Bootstrap.
 
