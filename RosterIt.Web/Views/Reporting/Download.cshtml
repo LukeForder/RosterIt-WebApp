@@ -1,0 +1,126 @@
+﻿
+@{
+    ViewBag.Title = "Index";
+}
+
+<div class="container">
+    <h2>
+        <i class="fa fa-clock-o"></i> &nbsp;Work Hour Rollup 
+    </h2>
+    <div class="well well-lg">
+        <form>
+            <fieldset>
+                <legend>Report Details</legend>
+                <div class="form-group">
+                    <label for="startDateButton">Start Date</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control" style="cursor: pointer" placeholder="Click the calendar button on the right to choose a date." readonly data-bind="value: startDateDisplay(), click: onSelectStart">
+                            <span class="input-group-btn">
+                                <button id="startDateButton" class="btn btn-info" type="button" data-bind="click: onSelectStart, attr: {'data-date': startDateDisplay() }"><i class="fa fa-calendar"></i></button>
+                            </span>
+                        </div><!-- /input-group -->
+                </div>
+                <div class="form-group">
+                    <label for="endDateButton">End Date</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" style="cursor: pointer" placeholder="Click the calendar button on the right to choose a date." readonly data-bind="value: endDateDisplay(), click: onSelectEnd">
+                        <span class="input-group-btn">
+                            <button id="endDateButton" class="btn btn-info" type="button" data-bind="click: onSelectEnd, attr: {'data-date': endDateDisplay() }"><i class="fa fa-calendar"></i></button>
+                        </span>
+                    </div><!-- /input-group -->
+                </div>
+            </fieldset>
+            <div class="row">
+                <div class="col-lg-12">
+                    <button class="btn btn-primary" style="margin-top: 15px;" data-bind="click: startRollUp">Download <i class="fa fa-download"></i></button>
+                </div>
+            </div>
+        </form>
+    </div> 
+</div>
+
+@section scripts
+{
+    <script src="~/Scripts/knockout-3.0.0.js"></script>
+    <script src="~/Scripts/toastr.js"></script>
+    <script src="~/Scripts/toastr.config.js"></script>
+    <script src="~/Scripts/nprogress.min.js"></script>
+    <script src="~/Scripts/moment.min.js"></script>
+    <script src="~/Scripts/bootstrap-datepicker.js"></script>
+    <script>
+
+        var services = (function () {
+
+            var performRollUp = function (startDate, endDate) {
+
+                toastr.options.timeOut = "3000";
+
+                toastr.info('Rolluping up shift data from the ' + moment(startDate).format("DD/MM/YYYY") + ' to the ' + moment(endDate).format("DD/MM/YYYY") + ', please be patient this may take a while.');
+
+                window.location.href = '@Url.HttpRouteUrl("RollupHours", new { })?start=' + encodeURIComponent(moment(startDate).format('YYYY-MM-DD')) + '&end=' + encodeURIComponent(moment(endDate).format('YYYY-MM-DD'));
+            };
+
+            return {
+                performRollUp: performRollUp
+            };
+
+        })();
+
+        var currentDate = new Date();
+        var defaultEndDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 26);
+        var defaultStartDate = moment(defaultEndDate).add('months', -1);
+
+        var viewModel = {
+            startDate: ko.observable(defaultStartDate),
+            endDate: ko.observable(defaultEndDate),
+            onSelectStart: function () {
+                $('#startDateButton').datepicker('show');
+            },
+            onSelectEnd: function () {
+                $('#endDateButton').datepicker('show');
+            },
+            startRollUp: function () {
+                services.performRollUp(viewModel.startDate(), viewModel.endDate());
+            }
+        };
+
+        viewModel.startDateDisplay = ko.computed(function () {
+            var startDate = this.startDate();
+            return moment(startDate).format('DD/MM/YYYY');
+        }, viewModel);
+
+        viewModel.endDateDisplay = ko.computed(function () {
+            var endDate = this.endDate();
+            return moment(endDate).format('DD/MM/YYYY');
+        }, viewModel);
+
+        ko.applyBindings(viewModel);
+
+        // this has to come after the data bindings have been applied, so that the 'data-date' attribute has been populated.
+        $('#startDateButton').datepicker({ format: 'dd/mm/yyyy', viewMode: 'string' }).on('changeDate', function (ev) {
+            console.log(ev.date);
+
+            if (viewModel.endDate() < ev.date) {
+                viewModel.startDate(moment(viewModel.endDate()).add('days', -1).toDate());
+            } else {
+                viewModel.startDate(ev.date);
+            }
+            $('#startDateButton').datepicker('hide');
+            $('#startDateButton').datepicker('setValue', viewModel.startDateDisplay());
+        });
+
+        $('#endDateButton').datepicker({ format: 'dd/mm/yyyy', viewMode: 'string' }).on('changeDate', function (ev) {
+            console.log(ev.date);
+
+            var newDate = ev.date;
+            if (viewModel.startDate() > newDate) {
+                viewModel.endDate(moment(viewModel.startDate()).add('days', 1).toDate());
+            } else {
+                viewModel.endDate(newDate);
+            }
+            $('#endDateButton').datepicker('hide');
+            $('#endDateButton').datepicker('setValue', viewModel.endDateDisplay());
+        });
+
+    </script>
+}

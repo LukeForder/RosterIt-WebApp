@@ -1,0 +1,123 @@
+﻿@using RosterIt.Web.Models
+@model GuardEditModel
+@{
+    ViewBag.Title = "Editing Guard " + Model.Guard.CompanyNumber;
+
+    var baseUri = string.Format("{0}://{1}{2}", Request.Url.Scheme, Request.Url.Authority, Url.Content("~/"));
+}
+
+<a href="@Url.Action("Index")" class="btn btn-default back-btn">
+    <i class="fa fa-arrow-left"></i>
+    guards
+</a>
+
+<div class="container">
+    <h2>
+        <i class="fa fa-pencil"></i>
+        Editing a guard
+    </h2>
+    <div class="well well-lg">
+        <form data-bind="submit: onSave">
+            <fieldset>
+                <legend>Guard Details</legend>
+                <div class="form-group">
+                    <label for="guardCompanyNumber">Company Number</label>
+                    <input type="text" class="form-control" id="guardCompanyNumber" placeholder="Guard's company number" data-bind="value: companyNumber, valueUpdate: 'afterkeydown'" required>
+                </div>
+                <div class="form-group">
+                    <label for="guardName">Name</label>
+                    <input type="text" class="form-control" id="guardName" placeholder="Guard's full name" data-bind="value: name, valueUpdate: 'afterkeydown'" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Site</label>
+                    <ul data-bind="foreach: sites" class="list-group">
+                        <li class="list-group-item" data-bind="css: { 'active': $root.selectedSite() === $data }, click: function() { $parent.onSiteSelected($data); }">
+                            <span data-bind="text: name"></span> <i data-bind="visible: $root.selectedSite() === $data" class="fa fa-check pull-right"></i>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="form-group">
+                    <input type="submit" value="Save" class="btn btn-primary" data-bind="enable: canSubmitEdits" />
+                </div>
+            </fieldset>
+        </form>
+    </div>
+</div>
+
+@section scripts
+{
+    <script src="~/Scripts/knockout-3.0.0.js"></script>
+    <script src="~/Scripts/toastr.js"></script>
+    <script src="~/Scripts/nprogress.min.js"></script>
+    <script>
+
+        toastr.options.positionClass = 'toast-bottom-right';
+
+        var viewModel = {
+            id: '@Model.Guard.Id',
+            companyNumber: ko.observable('@Model.Guard.CompanyNumber'),
+            name: ko.observable('@Model.Guard.FullName'),
+            sites: ko.observableArray(@Html.Raw(Json.Encode(Model.Sites.Select(x => new { id = x.Id, name = x.Name }).ToList()))),
+            selectedSite: ko.observable(),
+            onSiteSelected: function (site) {
+                if (site !== viewModel.selectedSite()) {
+                    viewModel.selectedSite(site);
+                }
+                else {
+                    viewModel.selectedSite(null);
+                }
+            },
+            onSave: function(){
+                NProgress.trickle();
+                toastr.info("Saving changes, " + viewModel.companyNumber());
+                $.ajax(
+                    '@Url.HttpRouteUrl("ApiUpdateGuard", new { id = Model.Guard.Id })',
+                    {
+                        data: {
+                            CompanyNumber: viewModel.companyNumber(),
+                            FullName: viewModel.name(),
+                            SiteId: viewModel.selectedSite() !== null && viewModel.selectedSite() !== undefined ? viewModel.selectedSite().id : null
+                        },
+                        type: 'PUT'
+                    }).done(function (guard) {
+                        toastr.success('Guard ' + viewModel.companyNumber() + ' saved successfully');
+                    }).fail(function (response) {
+                        try
+                        {
+                            console.log(response.responseText);
+
+                            var json = JSON.parse(response.responseText);
+
+                            toastr.error(json.Reason);
+                        }
+                        catch (e)
+                        {
+                            toastr.error('Unable to save changes.');
+                        }
+                    }).always(function () {
+                        NProgress.done();
+                    });
+            }
+        };
+
+        // find the guard's current site and select it
+        viewModel.sites().forEach(function (site) {
+            if (site.id === '@Model.Guard.SiteId')
+                viewModel.selectedSite(site);
+        });
+
+        viewModel.canSubmitEdits = ko.computed(function () {
+            var companyNumber = this.companyNumber(),
+                name = this.name(),
+                site = this.selectedSite();
+
+            return name && companyNumber && site;
+
+        }, viewModel);
+
+        ko.applyBindings(viewModel);
+
+    </script>
+}

@@ -1,0 +1,152 @@
+﻿
+@{
+    ViewBag.Title = "Guards";
+    var baseUri = string.Format("{0}://{1}{2}", Request.Url.Scheme, Request.Url.Authority, Url.Content("~/"));
+}
+
+
+<div class="container">
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <i class="fa fa-2x fa-shield"></i> <span style="font-size: xx-large">Guards</span>
+            <a class="btn btn-primary pull-right" href="@Url.Action("New")">Create</a>
+            </div>
+        <div class="panel-body" data-bind="visible: showNoGuardsMessage">
+            <div class="alert alert-info" style="margin-bottom: 0">
+                <span data-bind="text: noGuardsMessage"></span>
+            </div>
+        </div>
+        <div class="panel-body" data-bind="visible: !showNoGuardsMessage()">
+            <div class="input-group">
+                <input type="text" class="form-control" placeholder="Find guards by company number or name." data-bind="value: searchTerm, valueUpdate: 'afterkeydown'">
+                <span class="input-group-btn">
+                   <!-- ko if: searching() --> <button class="btn btn-danger" type="button" data-bind="click: clearSearch, enable: searching"><i class="fa fa-times"></i></button><!-- /ko -->
+                    <button class="btn btn-default" type="button" data-bind="click: onSearch, enable: searchTerm()">Search</button>
+                </span>
+            </div><!-- /input-group -->
+        </div>
+        <table data-bind="ifnot: showNoGuardsMessage" class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Company Id</th>
+                    <th>Name</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody data-bind="foreach: displayedGuards()">
+                <tr>
+                    <td>
+                        <span data-bind="text: companyNumber"></span>
+                    </td>
+                    <td>
+                        <span data-bind="text: name"></span>
+                    </td>
+                    <td>
+                        <div class="pull-right">
+                            <a href="#" data-bind="click: function() { $parent.deleteGuard($data) }">delete</a> |
+                            <a data-bind="attr: { href: $parent.getEditUri($data) }">edit</a>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section scripts
+{
+    <script src="~/Scripts/knockout-3.0.0.js"></script>
+    <script src="~/Scripts/toastr.js"></script>
+    <script src="~/Scripts/toastr.config.js"></script>
+    <script src="~/Scripts/nprogress.min.js"></script>
+    <script>
+        
+        var viewModel = {
+            guards: ko.observableArray([]),
+            displayedGuards: ko.observableArray([]),
+            deleteGuard: function (guard) {
+                NProgress.trickle();
+                toastr.info('Deleting ' + guard.name);
+                $.ajax(
+                    '@baseUri/api/guard/' + guard.id,
+                    {
+                        type: 'DELETE'
+                    }).done(function (result) {
+
+                        toastr.success('Deletion successful');
+
+                        viewModel.displayedGuards(viewModel.displayedGuards().filter(function (g) { return g !== guard }));
+
+                        viewModel.guards.remove(guard);
+
+                    }).fail(function (response) {
+                        var json = JSON.parse(response.responseText);
+                        toastr.error(json.Reason);
+                    }).always(function (result) {
+                        NProgress.done();
+                    });
+            },
+            getEditUri: function (guard) {
+                return '@baseUri/admin/guard/' + guard.id;
+            },
+            noGuardsMessage: ko.observable('Fetching the guards from the server.'),
+            searchTerm: ko.observable(),
+            onSearch: function () {
+                NProgress.trickle();
+
+                var matches = viewModel.guards().filter(function (guard) {
+                    return guard.companyNumber.toLowerCase().indexOf(viewModel.searchTerm().toLowerCase()) != -1 || guard.name.toLowerCase().indexOf(viewModel.searchTerm().toLowerCase()) != -1;
+                });
+
+                viewModel.displayedGuards(matches);
+
+                if (viewModel.displayedGuards().length == 0)
+                    viewModel.noGuardsMessage("No guards were found matching that message.");
+
+                viewModel.searching(true);
+
+                NProgress.done();
+            },
+            searching: ko.observable(),
+            clearSearch: function () {
+
+                NProgress.trickle();
+
+                viewModel.displayedGuards(viewModel.guards());
+
+                viewModel.searchTerm(null);
+                viewModel.searching(false);
+
+                NProgress.done();
+            }
+        };
+
+
+        viewModel.showNoGuardsMessage = ko.computed(function () { return this.guards().length === 0; }, viewModel);
+
+        ko.applyBindings(viewModel);
+
+        toastr.info("Loading guards");
+        NProgress.trickle();
+        $.ajax(
+            '@baseUri/api/guard',
+            {
+                type: 'GET'
+            }).done(function (result) {
+                toastr.success('Loaded ' + result.length + ' guard' + (result.length !== 1 ? 's' : '') + '.');
+                NProgress.done();
+
+                viewModel.guards(result);
+                viewModel.displayedGuards(result);
+                if (viewModel.guards.length === 0) {
+                    viewModel.noGuardsMessage('There are no guards at the moment, create a guard using the new button.');
+                }
+            }).fail(function (result) {
+
+            }).always(function () {
+                NProgress.done();
+            });
+
+
+    </script>
+}

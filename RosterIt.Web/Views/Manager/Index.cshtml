@@ -1,0 +1,116 @@
+﻿@{
+    ViewBag.Title = "Rosters";
+
+    var baseUri = string.Format("{0}://{1}{2}", Request.Url.Scheme, Request.Url.Authority, Url.Content("~/"));
+}
+
+@section scripts
+{
+    <script src="~/Scripts/nprogress.min.js"></script>
+    <script src="~/Scripts/toastr.min.js"></script>
+    <script src="~/Scripts/toastr.config.js"></script>
+    <script src="~/Scripts/moment.js"></script>
+    <script src="~/Scripts/knockout-3.0.0.js"></script>
+    <script src="~/Scripts/bootstrap-datepicker.js"></script>
+    <script>
+
+        var services = (function () {
+
+            var getRostersForDate = function (date) {
+
+                NProgress.trickle();
+                toastr.info("loading rosters for " + viewModel.displayDate());
+               var promise = $.ajax(
+                    '@baseUri/rosters?date=' + moment(date).format("L")
+                    ).done(function (result) {
+                        viewModel.sites(result);
+                        toastr.success('successfully loaded rosters for the ' + moment(date).format("Do MMMM, YYYY"));
+                    }).fail(function (response) {
+                        var text = response.responseText;
+                        try {
+                            var json = JSON.parse(text);
+                            var reason = json.Reason || json.Message;
+                            toastr.error(reason);
+                        }
+                        catch (exception) {
+                            console.log(text);
+                            toastr.error("Something went wrong while loading your rosters.");
+                        }
+                    }).always(function () {
+                        NProgress.done();
+                    });
+
+                return promise;
+            };
+
+            return {
+                getRostersForDate: getRostersForDate
+            };
+
+        })();
+
+        var viewModel = {
+            date: ko.observable(new Date()), 
+            sites: ko.observableArray(),
+            getUrl: function (site, shift, date) {
+                 return '@baseUri/manager/roster?date=' + moment(date).format('L') + '&shift=' + encodeURIComponent(shift.name) + '&siteId=' + site.id;
+            },
+            onSelectDate: function () {
+                $('#pick-date').datepicker('show');
+            }
+        };
+
+        viewModel.displayDate = ko.computed(function () {
+            return moment(this.date()).format("Do MMMM, YYYY")
+        }, viewModel);
+
+        ko.applyBindings(viewModel);
+
+        services.getRostersForDate(viewModel.date());
+
+
+        $('#pick-date').datepicker({
+            format: 'dd/mm/yyyy',
+            endDate: moment().add('days', 5).format('DD/MM/YYYY')
+        }).on('changeDate', function (ev) {
+            viewModel.date(ev.date);
+            services.getRostersForDate(ev.date);
+            $('#pick-date').datepicker('hide');
+        });
+
+    </script>
+}
+
+<div class="container">
+    <div class="well">
+        <span style="font-size: xx-large" data-bind="text: displayDate"></span>
+        <button id="pick-date" class="btn btn-info pull-right" data-bind="click: onSelectDate"><i class="fa fa-2x fa-calendar"></i></button>
+    </div>
+    <!-- ko foreach: sites -->
+    <div class="row">
+        <div class="panel panel-default">
+            <div class="panel-heading"><b data-bind="text: name"></b></div>
+            <div class="list-group">
+                <!-- ko foreach: shifts -->
+                <div class="list-group-item">
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <h4 class="pull-left" data-bind="text: name"></h4>
+                            <a data-bind="attr: { href: $root.getUrl($parent, $data, $root.date()) }" class="btn btn-primary pull-right">
+                                View
+                            </a>
+                            <div class="pull-right">
+                                <!-- ko if: submitted -->
+                                <i class="fa fa-2x fa-save" style="margin:8px;" title="Roster submitted"></i>
+                                <!-- /ko -->
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- /ko -->
+            </div>
+        </div>
+    </div>
+    <!-- /ko -->
+</div>

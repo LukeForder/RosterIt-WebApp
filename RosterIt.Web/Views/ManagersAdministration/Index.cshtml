@@ -1,0 +1,119 @@
+﻿
+@{
+    ViewBag.Title = "Managers";
+    var pageUrl = HttpContext.Current.Request.Url;
+    var baseUrl = Url.Content("~/");
+
+    var newManagerLink = Url.RouteUrl("NewManager");
+}
+
+<div class="container" id="content">
+    <div class="panel panel-default">
+        <div class="panel-heading">
+                <i class="fa fa-2x fa-users"></i> <span style="font-size: xx-large">Managers</span>
+
+                <a class="btn btn-primary pull-right" href="@newManagerLink">New</a>
+        </div>
+        <!-- ko if: managers().length == 0 -->
+        <div class="panel-body">
+            <div>
+                <div class="alert alert-info">
+                    There are no managers, to create a manager use the 'New' button on the right.
+                </div>
+            </div>
+        </div>
+        <!-- /ko -->
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Manager</th>
+                </tr>
+            </thead>
+
+            <tbody data-bind="foreach: managers">
+                <tr>
+                    <td class="col-lg-1 col-md-1 col-sm-1 col-xs-3">
+                        <span data-bind="visible: isAdministrator" title="Is Administrator"><i class="fa fa-key"></i></span>
+                        <span data-bind="visible: isSiteManager" title="Is Site Manager"><i class="fa fa-globe"></i></span>
+                    </td>
+                    <td class="col-lg-8 col-md-11 col-sm-11 col-xs-9">
+                        (<span data-bind="text: userName"></span>) <span data-bind="text: fullName"></span>
+                    </td>
+                    <td class="col-lg-3 col-md-12 col-sm-12 col-xs-12 text-right">
+                        <a href="#" data-bind="click: function() { $parent.onDeleteManager($data); }">delete</a> | <a data-bind="attr: { href: $parent.editUrl(id)}">edit</a> | <a data-bind="attr: { href: $parent.changePassword(id) }">change password</a>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div> 
+</div>
+
+<div class="modal fade" id="delete-confirmation-dialog">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <strong>Are you sure?</strong> 
+            </div>
+            <div class="modal-body">
+                This will permanently delete the manager. This can not be undone, delete the manager?
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" data-bind="click: deletionConfirmed">delete</button>
+                <button class="btn btn-link" data-dismiss="modal">cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section scripts
+{
+    <script src="~/Scripts/toastr.min.js"></script>
+    <script src="~/Scripts/toastr.config.js"></script>
+    <script src="~/Scripts/knockout-3.0.0.js"></script>
+    <script>
+
+        var viewModel = {
+            managers: ko.observableArray(@Html.Raw(Model.Json)),
+            editUrl: function(managerId) {
+                var editUrl =  '@string.Format("{0}://{1}{2}admin/manager/", Request.Url.Scheme, Request.Url.Authority, baseUrl)';
+                return editUrl + managerId;
+            },
+            changePassword: function(managerId) {
+                var editUrl = '@string.Format("{0}://{1}{2}admin/manager/", Request.Url.Scheme, Request.Url.Authority, baseUrl)';
+                return editUrl + managerId + '/password';
+            },
+            onDeleteManager: function(manager) {
+                $('#delete-confirmation-dialog').modal();
+
+                console.log(manager.id);
+
+                var dialog = document.getElementById('delete-confirmation-dialog');
+                ko.applyBindings({ 
+                    deletionConfirmed: function() {
+
+                        $.ajax(
+                            '@string.Format("{0}://{1}{2}api/manager/", Request.Url.Scheme, Request.Url.Authority, baseUrl)'+manager.id,
+                            {
+                                type: 'DELETE'
+                            }).done(function(result) {
+                                toastr.success('Deleted ' + manager.fullName);
+                                viewModel.managers.remove(manager);
+                                $(dialog).modal('hide');
+                            }).fail(function(result) {
+                                var json = JSON.parse(result.responseText);
+                                toastr.error(json.Reason);
+
+
+                            });
+
+                    }
+                }, dialog);
+            },
+        };
+
+        ko.applyBindingsToDescendants(viewModel, document.getElementById('content'));
+
+    </script>
+}

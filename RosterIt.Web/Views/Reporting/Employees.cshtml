@@ -1,0 +1,166 @@
+﻿
+@{
+    ViewBag.Title = "Employees";
+}
+
+<style>
+    .cal-month-day.holiday {
+        background-color: #94C3E3;
+    }
+        .cal-month-day.holiday span {
+            font-size: 1.5em;
+        }
+
+</style>
+
+
+<div class="container" style="padding-top: 20px;">
+    <div class="well">
+        <form>
+            <fieldset>
+                <legend>Select an employee</legend>
+                <div class="form-group">
+                    <label>Company Number</label>
+                    <div class="input-group">
+                        <input class="form-control" placeholder="Enter employees company number" data-bind="value: companyNumber, valueUpdate: 'afterkeydown'" />
+                        <span class="input-group-btn">
+                            <button class="btn btn-primary" type="button" data-bind="enable: canShow, click: show">Show</button>
+                        </span>
+                    </div>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+
+    <div class="panel panel-default">
+        <div class="panel-heading" data-bind="visible: loaded">
+            <div class="row">
+                <div class="col-md-8">
+                    <span id="calendar-heading" style="font-size: x-large"></span>
+                </div>
+                <div class="col-md-4 text-right">
+                    <div class="btn-group">
+                        <button class="btn btn-default" data-calendar-nav="prev"><i class="fa fa-angle-left"></i> Back</button>
+                        <button class="btn btn-default" data-calendar-nav="next">Next <i class="fa fa-angle-right"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="panel-body">
+            <div data-bind="visible: loaded">
+                <div id="calendar-container"></div>
+            </div>
+            <div data-bind="visible: !loaded()">
+                <div class="alert alert-info">
+                    <span class="fa fa-2x fa-exclamation-triangle"></span>
+                    Enter an employee company number into the form above, and tap the 'Show' button to view that Employee's attendence history.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section scripts 
+{
+    <script src="~/Scripts/knockout-3.0.0.js"></script>
+    <script src="~/Scripts/nprogress.min.js"></script>
+    <script src="~/Scripts/toastr.min.js"></script>
+    <script src="~/Scripts/toastr.config.js"></script>
+    <script src="~/Scripts/underscore.min.js"></script>
+    <script src="~/Scripts/calendar.min.js"></script>
+<script src="~/Scripts/moment.min.js"></script>
+    <script>
+        (function ($) {
+
+            var service = (function () {
+
+                var getAttendenceforMonth = function (companyNumber, date) {
+
+                    var url = '@Url.HttpRouteUrl("employeeMonthlyAttendence", new { })?companyNumber=' + encodeURIComponent(companyNumber) + '&month=' + date;
+
+                    return $.getJSON(url);
+                };
+
+                return {
+                    getAttendenceforMonth: getAttendenceforMonth
+                };
+
+            })();
+
+            var options = {
+                events_source: [],
+                tmpl_path: '../Content/tmpls/',
+                views: {
+                    year: {
+                        enable: 0
+                    },
+                    month: {
+                        slide_events: 1,
+                        enable: 1
+                    },
+                    week: {
+                        enable: 0
+                    },
+                    day: {
+                        enable: 0
+                    }
+                },
+                onAfterViewLoad: function (view) {
+                    $('#calendar-heading').text(this.getTitle());
+                    $('.btn-group button').removeClass('active');
+                }
+            };
+
+            var calendar = $('#calendar-container').calendar(options);
+
+            $('.btn-group button[data-calendar-nav]').each(function () {
+                var $this = $(this);
+                $this.click(function () {
+
+                    var title = calendar.getTitle();
+                    var action = $this.data('calendar-nav');
+
+                    var month = moment.utc(calendar.getTitle() + ' 01' , "MMMM YYYY DD").add('Month', action == 'next' ? 1 : -1).toISOString();
+                    service.getAttendenceforMonth(viewModel.companyNumber(), month)
+                    .done(function (result) {
+                        calendar.options.events_source = result;
+                        calendar._loadEvents();
+                        calendar.navigate(action);
+                    })
+
+                    
+                });
+            });
+
+
+            var viewModel = {
+                companyNumber: ko.observable(),
+                loaded: ko.observable(false)
+            };
+
+            viewModel.show = function () {
+
+                service.getAttendenceforMonth(this.companyNumber(), moment.utc(calendar.getTitle(), "MMMM YYYY").toISOString())
+                .done(function (events) {
+
+                        options.events_source = events;
+                        calendar = $('#calendar-container').calendar(options);
+
+                        viewModel.loaded(true);
+                });
+
+            };
+
+            viewModel.canShow = ko.computed(
+                function () {
+                    return this.companyNumber();
+                },
+                viewModel);
+
+            ko.applyBindings(viewModel);
+
+        })(jQuery);
+        
+    </script>
+    <script src="~/Scripts/calendar.config.js"></script>
+}

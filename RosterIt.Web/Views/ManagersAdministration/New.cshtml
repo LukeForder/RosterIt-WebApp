@@ -1,0 +1,177 @@
+﻿@{
+    ViewBag.Title = "New Manager";
+}
+
+<a class="btn btn-default back-btn" href="@Url.Action("index", "ManagersAdministration")">
+    <i class="fa fa-arrow-left"></i>
+    back
+</a>
+<div class="container">
+    <h2>
+        <i class="fa fa-globe"></i>
+        Creating a new manager
+    </h2>
+    <div class="well well-lg">
+        <form>
+            <fieldset>
+                <legend>Manager Details</legend>
+
+                <div class="form-group" data-bind="visible: hasError(userName())">
+                    <div class="alert alert-danger">
+                        <strong>The manager must be given a user name.</strong>
+                    </div>
+                </div>
+
+                <div class="form-group" data-bind="css: { 'has-error': hasError(userName()) }">
+                    <label for="UserName">User Name</label>
+                    <input type="text" required class="form-control" id="UserName" placeholder="Name used to log in" data-bind="value: userName, valueUpdate: 'afterkeydown'">
+                </div>
+
+
+                <div class="form-group" data-bind="visible: hasError(fullName())">
+                    <div class="alert alert-danger">
+                        <strong>The manager's full name must be given.</strong>
+                    </div>
+                </div>
+
+                <div class="form-group" data-bind="css: { 'has-error': hasError(fullName()) }">
+                    <label for="FullName">Full Name</label>
+                    <input type="text" required class="form-control" id="FullName" placeholder="Managers full name" data-bind="value: fullName, valueUpdate: 'afterkeydown'">
+                </div>
+
+                <div class="form-group" data-bind="visible: hasError(password())">
+                    <div class="alert alert-danger">
+                        <strong>The manager's account must have a password.</strong>
+                    </div>
+                </div>
+
+                <div class="form-group" data-bind="css: { 'has-error': hasError(password()) }">
+                    <label for="Password">Password</label>
+                    <input type="password" required class="form-control" id="Password" placeholder="Password" data-bind="value: password, valueUpdate: 'afterkeydown'">
+                </div>
+
+                <div class="form-group" data-bind="visible: notPasswordMatchesConfirmation()">
+                   <div class="alert alert-danger">
+                       <strong>Your password and your confirmation do not match!</strong>
+                   </div>
+                </div>
+
+                <div class="form-group" data-bind="css: { 'has-error': notPasswordMatchesConfirmation() }">
+                    <label for="PasswordConfirmation">Password Confirmation</label>
+                    <input type="password" class="form-control" id="PasswordConfirmation" placeholder="Re-enter your password" data-bind="value: passwordConfirmation, valueUpdate: 'afterkeydown'">
+                </div>
+
+                <div class="form-group" data-bind="visible: noRolesAssigned()">
+                    <div class="alert alert-danger">
+                        <strong>The manager must have at least one role assigned.</strong>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Manger's roles</label>
+                    <div class="row">
+                        <div class="col-sm-6 col-md-6 col-lg-6">
+                            <div class="checkbox">
+                                <label>
+                                    <input type="checkbox" data-bind="checked: isAdministrator"> Roster Administrator
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-md-6 col-lg-6">
+                            <div class="checkbox">
+                                <label>
+                                    <input type="checkbox" data-bind="checked: isSiteManager"> Site Manager
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <input type="submit" value="Create" class="btn btn-primary" data-bind="click: onCreate, enable: canCreate" />
+                </div>
+            </fieldset>
+        </form>
+    </div>
+</div>
+
+@section scripts
+{
+    <script src="~/Scripts/knockout-3.0.0.js"></script>
+    <script src="~/Scripts/toastr.min.js"></script>
+    <script src="~/Scripts/toastr.config.js"></script>
+    <script>
+
+        var viewModel = {
+            userName: ko.observable(),
+            fullName: ko.observable(),
+            password: ko.observable(),
+            passwordConfirmation: ko.observable(),
+            isAdministrator: ko.observable(false),
+            isSiteManager: ko.observable(false),
+            onCreate: function () {
+                toastr.info("Submitting manager.");
+
+                $.ajax(
+                    '@Url.HttpRouteUrl("SubmitNewManager", new { })',
+                    {
+                        data: JSON.stringify({
+                            FullName: viewModel.fullName(),
+                            UserName: viewModel.userName(),
+                            Password: viewModel.password(),
+                            PasswordConfirmation: viewModel.passwordConfirmation(),
+                            IsAdministrator: viewModel.isAdministrator(),
+                            IsSiteManager: viewModel.isSiteManager()
+                        }),
+                        contentType: 'application/json',
+                        type: 'POST'
+                    }).done(function (result) {
+                        toastr.success("Manager created successful");
+                        viewModel.password(null);
+                        viewModel.passwordConfirmation(null);
+                        viewModel.fullName(null);
+                        viewModel.userName(null);
+                    }).fail(function (result) {
+                        var json = JSON.parse(result.responseText);
+
+                        toastr.error(json.Reason);
+                    });
+                
+                
+
+            }
+        };
+
+        viewModel.noRolesAssigned = ko.computed(function () {
+            var isAdministrator = this.isAdministrator();
+            var isSiteManager = this.isSiteManager();
+
+            return !(isAdministrator || isSiteManager);
+        }, viewModel);
+
+        viewModel.notPasswordMatchesConfirmation = ko.computed(function () {
+            var password = this.password();
+            var confirmation = this.passwordConfirmation();
+
+            return !(password && confirmation && password == confirmation);
+        }, viewModel);
+
+        viewModel.hasError = function (value) {
+            return (!value);
+        };
+
+        viewModel.canCreate = ko.computed(function () {
+            var userName = this.userName();
+            var fullName = this.fullName();
+            var password = this.password();
+            var passwordConfirmation = this.passwordConfirmation();
+            var isAdmin = this.isAdministrator();
+            var isSiteManager = this.isSiteManager();
+
+            return userName && fullName && password && passwordConfirmation && password === passwordConfirmation && (isAdmin || isSiteManager);
+
+        }, viewModel);
+
+        ko.applyBindings(viewModel);
+
+    </script>
+}

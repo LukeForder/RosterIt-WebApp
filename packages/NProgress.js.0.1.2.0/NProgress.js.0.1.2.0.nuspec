@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+  <metadata>
+    <id>NProgress.js</id>
+    <version>0.1.2.0</version>
+    <title>NProgress.js :: A nanoscopic progress bar.</title>
+    <authors>Rico Sta. Cruz</authors>
+    <owners>Rico Sta. Cruz</owners>
+    <licenseUrl>https://raw.github.com/rstacruz/nprogress/master/License.md</licenseUrl>
+    <projectUrl>http://ricostacruz.com/nprogress/</projectUrl>
+    <iconUrl>https://raw.github.com/evereq/nprogress.js.nuget/master/images/nprogress.png</iconUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Slim progress bars for Ajax'y applications. Inspired by Google, YouTube, and Medium.
+
+Checkout project site at http://ricostacruz.com/nprogress</description>
+    <summary>Featuring realistic trickle animations to convince your users that something is happening!</summary>
+    <releaseNotes />
+    <copyright>© 2013, Rico Sta. Cruz.</copyright>
+    <language />
+    <tags>JavaScript Progress Bar Indicator Spin</tags>
+  </metadata>
+</package>

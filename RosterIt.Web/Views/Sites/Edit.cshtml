@@ -1,0 +1,95 @@
+﻿@using RosterIt.Models
+@using RosterIt.Web.Models
+@model SiteEditModel
+@{
+    ViewBag.Title = "Editing Site";
+
+    string siteUrl = string.Format("{0}://{1}", Request.Url.Scheme, Request.Url.Authority);
+}
+
+<a class="btn btn-default" href="@Url.Action("index")">
+    <i class="fa fa-arrow-left"></i>
+    back
+</a>
+<div class="container">
+    <h2>
+        <i class="fa fa-globe"></i>
+        Editing Site
+    </h2>
+    <div class="well well-lg">
+        <form data-bind="submit: onCreate">
+            <fieldset>
+                <legend>Site Details</legend>
+                <div class="form-group">
+                    <label for="siteName">Name</label>
+                    <input type="text" class="form-control" id="siteName" placeholder="Name of site" data-bind="value: name" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Manager</label>
+                    <ul data-bind="foreach: managers" class="list-group">
+                        <li class="list-group-item" data-bind="css: { 'active': $root.selectedManager() === $data }, click: function() { $parent.onManagerSelected($data); }">
+                            <span data-bind="text: name"></span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="form-group">
+                    <input type="submit" value="Create" class="btn btn-primary" />
+                </div>
+            </fieldset>
+        </form>
+    </div>
+</div>
+
+@section scripts
+{
+    <script src="~/Scripts/knockout-3.0.0.js"></script>
+    <script src="~/Scripts/toastr.min.js"></script>
+    <script src="~/Scripts/nprogress.js"></script>
+    <script>
+
+        var viewModel = {
+            id: '@Model.Site.Id',
+            name: ko.observable('@Model.Site.Name'),
+            managers: ko.observableArray(
+                @Html.Raw(Newtonsoft.Json.JsonConvert.SerializeObject(Model.Managers.Select(x => new { name = x.FullName, id = x.Id }).ToList()))
+                ),
+            selectedManager: ko.observable(),
+            onManagerSelected: function (manager) {
+                viewModel.selectedManager(manager);
+            },
+            onCreate: function () {
+                toastr.info('Saving edit!');
+                NProgress.trickle();
+
+                $.ajax(
+                    '@siteUrl/api/site/'+viewModel.id+'?managerId='+viewModel.selectedManager().id,
+                    {
+                        type: 'PUT',
+                        data: {
+                            Name: viewModel.name(),
+                            Manager: {
+                                Id: viewModel.selectedManager().id,
+                                FullName: viewModel.selectedManager().name
+                            }
+                        }
+                    }).done(function (result) {
+                        NProgress.done();
+                        toastr.success("Successfully saved '" + viewModel.name() + "'");
+                        window.location.href = '@Url.Action("index")';
+
+                    }).fail(function (result) {
+                        NProgress.done();
+                        toastr.error(result.responseText);
+
+                    });
+            }
+        };
+
+        viewModel.selectedManager(viewModel.managers().filter(function (manager) { return manager.id == '@Model.ManagerId' })[0]);
+
+        ko.applyBindings(viewModel);
+
+    </script>
+}

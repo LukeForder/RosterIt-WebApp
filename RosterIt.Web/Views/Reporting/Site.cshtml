@@ -1,0 +1,140 @@
+﻿@using Newtonsoft.Json
+@using RosterIt.Models
+@model IEnumerable<Site>
+@{
+    ViewBag.Title = "Site History";
+
+    var sites = 
+        Model
+            .Select(x => new { id = x.Id, name = x.Name })
+            .ToList();
+}
+<div class="container">
+    <h2>
+        <i class="fa fa-clock-o"></i> &nbsp;Site Attendence History
+    </h2>
+    <div class="well well-lg">
+        <form role="form">
+            <fieldset>
+                <legend>Report Details</legend>
+                <div class="form-group">
+                    <label for="StartDate">Start date</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Click here or on the calendar button on the right, and pick a report start date." style="cursor: pointer" readonly required data-bind="value: startDateDisplay(), click: onSelectStart">
+                        <span class="input-group-btn">
+                            <button id="startDateButton" class="btn btn-info" type="button" data-bind="click: onSelectStart, attr: {'data-date': startDateDisplay() }"><i class="fa fa-calendar"></i></button>
+                        </span>
+                    </div><!-- /input-group -->
+                </div>
+                <div class="form-group">
+                    <label for="EndDate">End date</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="Click here or on the calendar button on the right, and pick a report end date." style="cursor: pointer" readonly required data-bind="value: endDateDisplay(), click: onSelectEnd">
+                        <span class="input-group-btn">
+                            <button id="endDateButton" class="btn btn-info" type="button" data-bind="click: onSelectEnd, attr: {'data-date': endDateDisplay() }"><i class="fa fa-calendar"></i></button>
+                        </span>
+                    </div><!-- /input-group -->
+                </div>
+                <div class="form-group">
+                    <label for="Site">Site</label>
+                    <select class="form-control" data-bind="value: endDateDisplay(), options: sites, value: selectedSite, optionsCaption: 'Pick a site', optionsText: 'name'" required></select>
+                </div>
+            </fieldset>
+            <div class="row">
+                <div class="col-lg-12">
+                    <button class="btn btn-primary" style="margin-top: 15px;" data-bind="click: startRollUp, enable: canStartRollup">Download <i class="fa fa-download"></i></button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+@section scripts
+{
+    <script src="~/Scripts/knockout-3.0.0.js"></script>
+    <script src="~/Scripts/toastr.js"></script>
+    <script src="~/Scripts/toastr.config.js"></script>
+    <script src="~/Scripts/nprogress.min.js"></script>
+    <script src="~/Scripts/moment.min.js"></script>
+    <script src="~/Scripts/bootstrap-datepicker.js"></script>
+    <script>
+
+        var services = (function () {
+
+            var performRollUp = function (startDate, endDate, siteId) {
+                toastr.options.timeOut = "3000";
+                toastr.info('Rolluping up shift data from the ' + moment(startDate).format("DD/MM/YYYY") + ' to the ' + moment(endDate).format("DD/MM/YYYY") + ', please be patient this may take a while.');
+                window.location.href = '@Url.HttpRouteUrl("RollupSite", new { })?start=' + encodeURIComponent(moment(startDate).format('YYYY-MM-DD')) + '&end=' + encodeURIComponent(moment(endDate).format('YYYY-MM-DD')) + '&site=' + encodeURIComponent(siteId);
+            };
+
+
+            return {
+                performRollUp: performRollUp
+            };
+
+        })();
+
+        var viewModel = {
+            startDate: ko.observable(),
+            endDate: ko.observable(),
+            sites: ko.observableArray(@Html.Raw(Json.Encode(sites))),
+            selectedSite: ko.observable(),
+            onSelectStart: function () {
+                $('#startDateButton').datepicker('show');
+            },
+            onSelectEnd: function () {
+                $('#endDateButton').datepicker('show');
+            },
+            startRollUp: function () {
+                services.performRollUp(viewModel.startDate(), viewModel.endDate(), viewModel.selectedSite().id);
+            }
+        };
+
+        viewModel.startDateDisplay = ko.computed(function () {
+            var startDate = this.startDate();
+            return (startDate) ? moment(startDate).format('DD/MM/YYYY') : "";
+        }, viewModel);
+
+        viewModel.endDateDisplay = ko.computed(function () {
+            var endDate = this.endDate();
+            return (endDate) ? moment(endDate).format('DD/MM/YYYY') : "";
+        }, viewModel);
+
+        viewModel.canStartRollup = ko.computed(function () {
+
+            var hasSite = this.selectedSite();
+            var hasStart = this.startDate();
+            var hasEnd = this.endDate();
+
+            return hasSite && hasStart && hasEnd;
+
+        }, viewModel);
+
+        ko.applyBindings(viewModel);
+
+        // this has to come after the data bindings have been applied, so that the 'data-date' attribute has been populated.
+        $('#startDateButton').datepicker({ format: 'dd/mm/yyyy', viewMode: 'string' }).on('changeDate', function (ev) {
+            console.log(ev.date);
+
+            if (viewModel.endDate() < ev.date) {
+                viewModel.startDate(moment(viewModel.endDate()).add('days', -1).toDate());
+            } else {
+                viewModel.startDate(ev.date);
+            }
+            $('#startDateButton').datepicker('hide');
+            $('#startDateButton').datepicker('setValue', viewModel.startDateDisplay());
+        });
+
+        $('#endDateButton').datepicker({ format: 'dd/mm/yyyy', viewMode: 'string' }).on('changeDate', function (ev) {
+            console.log(ev.date);
+            var newDate = ev.date;
+            if (viewModel.startDate() > newDate) {
+                viewModel.endDate(moment(viewModel.startDate()).add('days', 1).toDate());
+            } else {
+                viewModel.endDate(newDate);
+            }
+            $('#endDateButton').datepicker('hide');
+            $('#endDateButton').datepicker('setValue', viewModel.endDateDisplay());
+        });
+
+    </script>
+}

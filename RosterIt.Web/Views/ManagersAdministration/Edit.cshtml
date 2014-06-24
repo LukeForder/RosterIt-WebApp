@@ -1,0 +1,207 @@
+﻿@using RosterIt.Models
+@model Manager
+@{
+    ViewBag.Title = "Editing Manager";
+}
+
+<a class="btn btn-default back-btn" href="@Url.Action("index", "ManagersAdministration")">
+    <i class="fa fa-arrow-left"></i>
+    back
+</a>
+<div class="container">
+    <h2>
+        <i class="fa fa-globe"></i>
+        Updating details for @Model.FullName
+    </h2>
+    <div class="well well-lg">
+        <form>
+            <fieldset>
+                <legend>Manager Details</legend>
+
+                <div class="form-group" data-bind="visible: hasError(userName())">
+                    <div class="alert alert-danger">
+                        <strong>The manager must be given a user name.</strong>
+                    </div>
+                </div>
+
+                <div class="form-group" data-bind="css: { 'has-error': hasError(userName()) }">
+                    <label for="UserName">User Name</label>
+                    <input type="text" required class="form-control" id="UserName" placeholder="Name used to log in" data-bind="value: userName, valueUpdate: 'afterkeydown'">
+                </div>
+
+
+                <div class="form-group" data-bind="visible: hasError(fullName())">
+                    <div class="alert alert-danger">
+                        <strong>The manager's full name must be given.</strong>
+                    </div>
+                </div>
+
+                <div class="form-group" data-bind="css: { 'has-error': hasError(fullName()) }">
+                    <label for="FullName">Full Name</label>
+                    <input type="text" required class="form-control" id="FullName" placeholder="Managers full name" data-bind="value: fullName, valueUpdate: 'afterkeydown'">
+                </div>
+
+                <div class="form-group" data-bind="visible: noRolesAssigned()">
+                    <div class="alert alert-danger">
+                        <strong>The manager must have at least one role assigned.</strong>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Manger's roles</label>
+                    <div class="row">
+                        <div class="col-sm-6 col-md-6 col-lg-6">
+                            <div class="checkbox">
+                                <label>
+                                    <input type="checkbox" data-bind="checked: isAdministrator"> Roster Administrator
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-md-6 col-lg-6">
+                            <div class="checkbox">
+                                <label>
+                                    <input type="checkbox" data-bind="checked: isSiteManager"> Site Manager
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <input type="submit" value="Update" class="btn btn-primary" data-bind="click: onUpdate, enable: canUpdate" />
+                </div>
+            </fieldset>
+        </form>
+    </div>
+</div>
+
+
+@section scripts
+{
+    <script src="~/Scripts/nprogress.js"></script>
+    <script src="~/Scripts/toastr.min.js"></script>
+    <script src="~/Scripts/toastr.config.js"></script>
+    <script src="~/Scripts/knockout-3.0.0.js"></script>
+    <script>
+
+        // Manager Constructor - represents all the details of the manager that can be updated.
+        var Manager = function (id, userName, fullName, isAdministator, isSiteManager) {
+
+            var _id = id,
+                _userName = userName,
+                _fullName = fullName,
+                _isAdministrator = isAdministator,
+                _isSiteManager = isSiteManager,
+                self = this;
+
+            var getId = function () {
+                return _id;
+            }
+
+            var getUserName = function () {
+                return _userName;
+            };
+
+            var getFullName = function () {
+                return _fullName;
+            };
+
+            var getIsAdministrator = function () {
+                return _isAdministrator;
+            };
+
+            var getIsSiteManager = function () {
+                return _isSiteManager;
+            };
+
+            return {
+                getId: getId,
+                getUserName: getUserName,
+                getFullName: getFullName,
+                getIsAdministrator: getIsAdministrator,
+                getIsSiteManager: getIsSiteManager
+            };
+
+        };
+
+        // Services static class - Methods for interacting with the API
+        var Services = (function ($, toastr, NProgress) {
+
+            //  Params:
+            //      manager (Manager): The manager to be updated 
+            //  Returns:
+            //      (Deferred): a promise representing an async ajax call
+            //  Summary: 
+            //      Update the details of a manager through an API call
+            var updateDetails = function (manager) {
+                return $.ajax(
+                    '@Url.HttpRouteUrl("ApiUpdateDetails", new { id = Model.Id })',
+                    {
+                        type: 'PUT',
+                        contentType: 'application/json',
+                        data: JSON.stringify({
+                            Id: manager.getId(),
+                            UserName: manager.getUserName(),
+                            FullName: manager.getFullName(),
+                            IsAdministrator: manager.getIsAdministrator(),
+                            IsSiteManager: manager.getIsSiteManager()
+                        })
+                    }).done(function () {
+                        toastr.success('Updated the details for ' + manager.getFullName() + '.');
+                    }).fail(function (response) {
+                        try {
+                            var responseText = response.responseText;
+                            var json = JSON.parse(responseText);
+                            var message = json.Reason || json.Message || 'Something went wrong updating ' + (manager && manager.getFullName && manager.getFullName()) ? manager.getFullName() : 'the managers' + 'details.'
+                            toastr.error(message);
+                        } catch (e) {
+                            var message = 'Something went wrong updating ' + (manager && manager.getFullName && manager.getFullName()) ? manager.getFullName() : 'the managers' + 'details.'
+                            toastr.error(message);
+                        }
+                    });
+            };
+            return {
+                updateDetails: updateDetails
+            };
+        })(jQuery, toastr, NProgress);
+
+        var viewModel = {
+            id: '@Model.Id',
+            isAdministrator: ko.observable(@Json.Encode(Model.IsAdministrator)),
+            isSiteManager: ko.observable(@Json.Encode(Model.IsSiteManager)),
+            userName: ko.observable('@Model.UserName'),
+            fullName: ko.observable('@Model.FullName')
+        };
+
+        viewModel.noRolesAssigned = ko.computed(function () {
+            return !(this.isAdministrator() || this.isSiteManager());
+        }, viewModel);
+
+
+        viewModel.onUpdate = function () {
+            var manager = new Manager(
+                viewModel.id,
+                viewModel.userName(),
+                viewModel.fullName(),
+                viewModel.isAdministrator(),
+                viewModel.isSiteManager());
+
+            Services.updateDetails(manager);
+        };
+
+        viewModel.hasError = function (val) {
+            // check that the value is equivalent to true
+            return val == undefined || val == null || !val;
+        };
+
+        viewModel.canUpdate = ko.computed(function () {
+            var name = this.fullName();
+            var user = this.userName();
+            var rolesAssigned = this.noRolesAssigned() == false;
+
+            return name && user && rolesAssigned;
+        }, viewModel);
+
+        ko.applyBindings(viewModel);
+
+    </script>
+}

@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
+  <metadata>
+    <id>smtpapi</id>
+    <version>1.0.0</version>
+    <authors>Brandon West</authors>
+    <owners>Brandon West</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Easily build SendGrid SMTPAPI headers.</description>
+    <summary>Easily build SendGrid SMTPAPI headers.</summary>
+    <releaseNotes />
+    <copyright>Copyright 2014</copyright>
+    <tags>smtpapi sendgrid email</tags>
+  </metadata>
+</package>

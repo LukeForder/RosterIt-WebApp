@@ -1,0 +1,116 @@
+﻿@{
+    ViewBag.Title = "New Guard";
+}
+
+<a href="@Url.Action("Index")" class="btn btn-default back-btn">
+    <i class="fa fa-arrow-left"></i> 
+    guards
+</a>
+
+<div class="container">
+    <h2>
+        <i class="fa fa-user"></i>
+        Registering a new guard
+    </h2>
+    <div class="well well-lg">
+        <form data-bind="submit: onCreate">
+            <fieldset>
+                <legend>Guard Details</legend>
+                <div class="form-group">
+                    <label for="guardCompanyNumber">Company Number</label>
+                    <input type="text" class="form-control" id="guardCompanyNumber" placeholder="Guard's company number" data-bind="value: companyNumber, valueUpdate: 'afterkeydown'" required>
+                </div>
+                <div class="form-group">
+                    <label for="guardName">Name</label>
+                    <input type="text" class="form-control" id="guardName" placeholder="Guard's full name" data-bind="value: name, valueUpdate: 'afterkeydown'" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Site</label>
+                    <div data-bind="foreach: sites" class="list-group">
+                        <a href="#" class="list-group-item" data-bind="css: { 'active' : $root.selectedSite() === $data }, click: function() { $parent.onSiteSelected($data); }">
+                           <span data-bind="text: name"></span> <i data-bind="visible: $root.selectedSite() === $data" class="fa fa-check pull-right"></i> 
+                        </a>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <input type="submit" value="Create" class="btn btn-primary" data-bind="enable: canCreateNew"/>
+                </div>
+            </fieldset>
+        </form>
+    </div>
+</div>
+
+@section scripts
+{
+    <script src="~/Scripts/knockout-3.0.0.js"></script>
+    <script src="~/Scripts/toastr.js"></script>
+    <script src="~/Scripts/toastr.config.js"></script>
+    <script src="~/Scripts/nprogress.min.js"></script>
+    <script>
+
+        var viewModel = {
+            companyNumber: ko.observable(''),
+            name: ko.observable(''),
+            sites: ko.observableArray(@Html.Raw(Json.Encode(Model))),
+            selectedSite: ko.observable(),
+            onSiteSelected: function (site) {
+                if (site !== viewModel.selectedSite()) {
+                    viewModel.selectedSite(site);
+                }
+                else {
+                    viewModel.selectedSite(null);
+                }
+            },
+            onCreate: function(){
+                NProgress.trickle();
+                toastr.info("Creating new guard, " + viewModel.companyNumber());
+                $.ajax(
+                    '@Url.HttpRouteUrl("SubmitNewGuard", new { })',
+                    {
+                        data: {
+                            CompanyNumber: viewModel.companyNumber(),
+                            FullName: viewModel.name(),
+                            SiteId: viewModel.selectedSite() !== null && viewModel.selectedSite() !== undefined ? viewModel.selectedSite().id : null
+                        },
+                        type: 'POST'
+                    }).done(function (guard) {
+                        toastr.success('Guard ' + viewModel.companyNumber() + ' created successfully');
+
+                        viewModel.companyNumber(null);
+                        viewModel.name(null);
+                        viewModel.selectedSite(null);
+
+                    }).fail(function (response) {
+                        try
+                        {
+                            console.log(response.responseText);
+
+                            var json = JSON.parse(response.responseText);
+
+                            toastr.error(json.Reason);
+                        }
+                        catch (e)
+                        {
+                            toastr.error('Unable to create guard.');
+                        }
+                    }).always(function () {
+                        NProgress.done();
+                    });
+            }
+        };
+
+        viewModel.canCreateNew = ko.computed(function () {
+            var companyNumber = this.companyNumber(),
+                name = this.name(),
+                site = this.selectedSite();
+
+            return name && companyNumber && site;
+
+        }, viewModel);
+
+        ko.applyBindings(viewModel);
+        
+    </script>
+}

@@ -1,0 +1,238 @@
+﻿
+@{
+    ViewBag.Title = "Roster";
+    
+    var url = string.Format("{0}://{1}{2}", Request.Url.Scheme, Request.Url.Authority, Url.Content("~/"));
+}
+<style>
+    .btn.btn-link.active {
+        background-color: #2C3E50;
+        color: white;
+    }
+</style>
+<div class="container">
+    <div class="panel panel-primary">
+        <div class="panel-heading">
+            <span style="font-size: xx-large" data-bind="text: siteName"></span>
+        </div>
+        <div class="panel-body">
+            <div class="well" style="margin-bottom: 0">
+                <div class="row" style="font-size: x-large; margin-bottom: 15px">
+                    <div class="col-lg-3"><i class="fa fa-calendar"></i> Date:</div>
+                    <div class="col-lg-9"><span data-bind="text: displayDate"></span></div>
+                </div>
+                <div class="row" style="font-size: x-large">
+                    <div class="col-lg-3"><i class="fa fa-clock-o"></i> Shift:</div>
+                    <div class="col-lg-9"><span data-bind="text: shift"></span></div>
+                </div>
+            </div>
+        </div>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Guard</th>
+                    <th class="text-right">Attendence</th>
+                </tr>
+            </thead>
+            <tbody data-bind="foreach: guards">
+                <tr>
+                    <td data-bind="text: name" class="col-lg-3 col-xs-3 col-md-3 col-sm-3"></td>
+                    <td class="col-lg-8 col-xs-8 col-md-8 col-sm-8">
+                        <div class="pull-right">
+                            <div class="button-group " style="margin-bottom: 0; display: inline-block; vertical-align: top;">
+                                <!-- ko foreach: shifts-->
+                                <a class="btn btn-link" style="display: inline-block; cursor: pointer;" data-bind="text: symbol, css: { active: $data === $parent.selectedShift() }, click: function() { $parent.shiftSelected($data); }"></a>
+                                <!--/ko -->
+                            </div>
+                            <div style="display: inline-block">
+                                <div class=" input-group">
+                                    <span class="input-group-btn" style="margin: 0; padding: 0;">
+                                        <a class="btn btn-link" data-bind="css: { active: $data.isWorkingOvertime() }, click: function() { $data.isWorkingOvertime(!$data.isWorkingOvertime()); }">+</a>
+                                    </span>
+                                    <select class="form-control" data-bind="attr: { disabled: !$data.isWorkingOvertime() }, options: $root.overtimeHours, visible: $data.isWorkingOvertime(), value: overtimeHours"></select>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <!-- ko if:  (guards().length > 0 && !persisted()) || isAdmin()  -->
+    <div class="row">
+        <div class="col-lg-12">
+            <button class="btn btn-primary pull-right" data-toggle="modal" data-target="#confirm-submit" data-bind="enable: !persisted() || isAdmin()">Submit</button>
+        </div>
+    </div>
+    <!-- /ko -->
+    <!-- ko if: persisted() && !isAdmin() -->
+    <div class="alert alert-danger">
+        <div class="row">
+            <div class="col-lg-1 col-sm-1 col-md-1 col-xs-2">
+                <i class="fa fa-2x fa-warning"></i>
+            </div>
+            <div class="col-lg-11 col-sm-11 col-md-11 col-xs-10 col">
+                <p>
+                    <strong>Roster submitted!</strong> If there are errors an administrator at head office will need to make the corrections.
+                </p>
+            </div>
+        </div>
+    </div>
+    <!-- /ko -->
+</div>
+<div class="modal fade" id="confirm-submit">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <h4 class="modal-title">Confirm Action</h4>
+            </div>
+            <div class="modal-body">
+                <p>
+                    All done? Click 'Submit Roster' to submit the roster.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" data-bind="click: submitRoster">Submit Roster</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@section scripts
+{
+    <script src="~/Scripts/knockout-3.0.0.js"></script>
+    <script src="~/Scripts/toastr.js"></script>
+    <script src="~/Scripts/toastr.config.js"></script>
+    <script src="~/Scripts/nprogress.min.js"></script>
+    <script src="~/Scripts/moment.min.js"></script>
+    <script>
+
+
+        var viewModel = {
+            siteId: ko.observable(),
+            siteName: ko.observable(),
+            guards: ko.observableArray([]),
+            shift: ko.observable(),
+            date: ko.observable(),
+            persisted: ko.observable(),
+            isAdmin: ko.observable(),
+            submitRoster: function () {
+
+                var roster = {
+                    GuardRecords: viewModel.guards().map(function (g) {
+                        return {
+                            Guard: g.entity,
+                            Shift: {
+                                Id: g.selectedShift().id,
+                                Description: g.selectedShift().description,
+                                Symbol: g.selectedShift().symbol,
+                                IsFixedDuration: g.selectedShift().isFixed,
+                                AvailableDurations: g.selectedShift().availableDurations,
+                                HoursWorked: (g.hours() && g.hours()[0]) ? g.hours()[0] : 12
+                            },
+                            OvertimeHours: g.isWorkingOvertime() ?  g.overtimeHours() : null
+                        }
+                    }),
+                    AvailableShifts: viewModel.AvailableShifts
+                };
+
+                NProgress.trickle();
+                toastr.info('Submitting the roster');
+
+                $.ajax(
+                    '@Html.Raw(Url.HttpRouteUrl("SubmitRoster", new { siteId = Model.SiteId, date = Model.Date, shift = Model.Shift }))',
+                    {
+                        type: 'POST',
+                        data: JSON.stringify(roster),
+                        contentType: 'application/json'                        
+                    }).done(
+                        function (data) {
+                            toastr.success("Roster successfully submitted");
+                            viewModel.persisted(true);
+                            window.location.href = '@Url.Action("Index", "Manager")';
+                        }).fail(function (response) {
+
+                            try {
+                                var text = response.responseText;
+                                var json = JSON.parse(text);
+                                var message = json.Message || json.Reason;
+                                toastr.error(message);
+                            } catch (e) {
+                                toastr.error(e.message);
+                            }
+                        }).always(function () {
+                            NProgress.done();
+                        });
+
+
+            }
+        }
+
+        viewModel.displayDate = ko.computed(function () {
+            return this.date() ? moment(this.date()).format('Do MMMM, YYYY') : "";
+        }, viewModel);
+
+        ko.applyBindings(viewModel);
+
+        NProgress.trickle();
+        toastr.info("Loading roster data");
+
+        $.ajax(
+               '@Html.Raw(Url.HttpRouteUrl("Roster", new { siteId = Model.SiteId, date = Model.Date, shift = Model.Shift }))'
+            ).done(function (result) {
+                viewModel.date(result.Date);
+                viewModel.shift(result.ShiftTime);
+                viewModel.siteId(result.Site.Id);
+                viewModel.siteName(result.Site.Name);
+                viewModel.persisted(result.Persisted);
+                viewModel.isAdmin(result.IsAdministator);
+                viewModel.AvailableShifts = result.AvailableShifts;
+
+                viewModel.overtimeHours =  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+                var records = result.GuardRecords.map(function (g) {
+                    var record = {
+                        id: g.Guard.Id,
+                        name: "(" + g.Guard.CompanyNumber + ") " + g.Guard.FullName,
+                        entity: g.Guard,
+                        hours: ko.observable(g.Shift.HoursWorked),
+                        shifts: result.AvailableShifts.map(function (s) {
+                            return {
+                                symbol: s.Symbol,
+                                id: s.Id,
+                                description: s.Description,
+                                isFixed: s.IsFixedDuration,
+                                availableDurations: s.AvailableDurations
+                            }
+                        }),
+                        isWorkingOvertime: ko.observable(g.OvertimeHours != null),
+                        overtimeHours: ko.observable(g.OvertimeHours),
+                        selectedShift: ko.observable()
+                    };
+
+                    record.shiftSelected = function (shift) {
+                        if (!viewModel.persisted() || viewModel.isAdmin()) 
+                            record.selectedShift(shift);
+                    };
+
+                    record.shifts.forEach(function (s) {
+                        if (s.id === g.Shift.Id) {
+                            record.selectedShift(s);
+                        }
+                    });
+
+                    return record;
+                });
+
+                viewModel.guards(records);
+
+            }).fail(function (response) {
+
+            }).always(function () {
+                NProgress.done();
+            });
+    </script>
+}

@@ -1,0 +1,78 @@
+﻿@using RosterIt.Models
+@model IEnumerable<Site>
+
+@{
+    ViewBag.Title = "Sites";
+    
+    string deleteUrl = string.Format("{0}://{1}/api/site/", Request.Url.Scheme, Request.Url.Authority);
+    string editUrl = string.Format("{0}://{1}/admin/sites/", Request.Url.Scheme, Request.Url.Authority);
+}
+
+<div class="container">
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <i class="fa fa-2x fa-globe"></i> <span style="font-size: xx-large">Sites</span>
+            <a href="@Url.RouteUrl("NewSite")" class="btn btn-primary pull-right">
+                <i class="fa fa-add"></i>
+                new
+            </a>
+        </div>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Site</th>
+                    <th>Manager</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody data-bind="foreach: sites">
+                <tr>
+                    <td data-bind="text: name"></td>
+                    <td><span data-bind="text: managerName"></span></td>
+                    <td>
+                        <div class="pull-right">
+                            <a data-bind="attr: { href: editUrl() }">edit</a> |
+                            <a data-bind="click: onDelete">delete</a>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section scripts
+{
+    <script src="~/Scripts/knockout-3.0.0.js"></script>
+    <script src="~/Scripts/toastr.js"></script>
+    <script src="~/Scripts/nprogress.min.js"></script>
+    <script>    
+        var sites = @Html.Raw(Json.Encode(Model.Select(x => new { id = x.Id, name = x.Name, managerName = (x.Manager != null) ? x.Manager.FullName : "" })));
+        sites.forEach(function(site) {
+            site.onDelete = function() {
+                NProgress.trickle();
+                toastr.info("Deleting '" + site.name + "'.");
+                $.ajax(
+                    '@deleteUrl'+site.id,
+                    {
+                        type: "DELETE"
+                    }).done(function(result) {
+                        toastr.success('Site deleted.');
+                        NProgress.done();
+                        viewModel.sites.remove(site);
+
+                    }).fail(function(result) {
+                        NProgress.done();
+                    });
+            };
+            site.editUrl = function() {
+                return '@editUrl'+site.id+'/edit';
+            };
+        });
+
+        var viewModel = {sites: ko.observableArray(sites) };
+
+        ko.applyBindings(viewModel);
+
+    </script>
+}
